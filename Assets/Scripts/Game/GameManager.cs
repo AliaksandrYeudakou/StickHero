@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class GameManager : MonoBehaviour
 {
     #region Fields
@@ -9,8 +10,6 @@ public class GameManager : MonoBehaviour
     public static GameManager instance = null;
 
     [SerializeField] GameObject stickController;
-
-    StickController detectClicksObj;
 
     BoardManager boardScript;
 
@@ -48,9 +47,10 @@ public class GameManager : MonoBehaviour
     public void StartGame()
     {
         UIManager.instance.GameScreenState();
-        boardScript.ISGameStarted();
-        stickController.gameObject.SetActive(true);
 
+        boardScript.ISGameStarted();
+
+        stickController.gameObject.SetActive(true);
         stickController.GetComponent<StickController>().CanGrown = true;
     }
 

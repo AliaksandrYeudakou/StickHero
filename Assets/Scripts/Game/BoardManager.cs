@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
+
 public class BoardManager : MonoBehaviour
 {
     #region Fields
@@ -21,6 +22,7 @@ public class BoardManager : MonoBehaviour
     GameObject instanceHero;
 
     Vector2 startBlockUISize;
+    Vector2 startBlockGameSize;
 
     Transform boardHolder;
 
@@ -29,7 +31,8 @@ public class BoardManager : MonoBehaviour
     float heroWidth;
     float end;
 
-    bool checkStartGame = false;
+    bool sartGame;
+    bool startGamePosition;
 
     #endregion
 
@@ -44,10 +47,10 @@ public class BoardManager : MonoBehaviour
 
     void Update()
     {
-        if (checkStartGame)
+        if (sartGame && !startGamePosition)
         {
             SetStartGamePosition();
-            PushBlock(instanceBlock);   
+            PushBlock(instanceBlock);
         }
     }
 
@@ -78,7 +81,7 @@ public class BoardManager : MonoBehaviour
 
     public void ISGameStarted()
     {
-        checkStartGame = true;
+        sartGame = true;
     }
 
     #endregion
@@ -90,12 +93,20 @@ public class BoardManager : MonoBehaviour
     {
         SetStartBlockGamePosition();
         SetStartGameHeroPosition();
+
+        float currentX = instanceStartBlock.transform.position.x;
+        float endX = SetStartBlockPosition(startBlockGameSize).x;
+
+        if (currentX == endX)
+        {
+            startGamePosition = true;
+        }
     }
 
 
     void SetStartBlockGamePosition()
     {
-        Vector2 startBlockGameSize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_GAME_HEIGHT_RATIO);
+        startBlockGameSize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_GAME_HEIGHT_RATIO);
         instanceStartBlock.transform.localScale = SetStartBlockScale(startBlockGameSize, startBlock);
 
         FixObjectBoxCollider2D(instanceStartBlock);

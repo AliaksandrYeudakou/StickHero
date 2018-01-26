@@ -1030,6 +1030,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   stick: {fileID: 1047765084734604, guid: c8fff857168455740b15385b66f01a89, type: 2}
+  rotationalSpeed: 250
+  dropSpeedX: 10
+  dropSpeedY: 10
 --- !u!1 &1699846593
 GameObject:
   m_ObjectHideFlags: 0
