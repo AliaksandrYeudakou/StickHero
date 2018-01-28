@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 using Random = UnityEngine.Random;
 
 
@@ -24,6 +25,8 @@ public class BoardManager : MonoBehaviour
     Vector2 startBlockUISize;
     Vector2 startBlockGameSize;
 
+    Vector3 stickPosition;
+
     Transform boardHolder;
 
     float startBlockHeight;
@@ -32,12 +35,21 @@ public class BoardManager : MonoBehaviour
     float end;
 
     bool sartGame;
-    bool startGamePosition;
+    bool isBridgeBuilt;
+
+    // for test
+    bool successfullyReached;
 
     #endregion
 
 
     #region Unity lifecycle
+
+    void OnEnable()
+    {
+        StickController.BridgeBuilt += OnBuiltBridge;
+    }
+
 
     void Start()
     {
@@ -47,11 +59,17 @@ public class BoardManager : MonoBehaviour
 
     void Update()
     {
-        if (sartGame && !startGamePosition)
+        if (sartGame && !isBridgeBuilt)
         {
             SetStartGamePosition();
             PushBlock(instanceBlock);
         }
+    }
+
+
+    void OnDisable()
+    {
+        StickController.BridgeBuilt -= OnBuiltBridge;    
     }
 
     #endregion
@@ -93,14 +111,6 @@ public class BoardManager : MonoBehaviour
     {
         SetStartBlockGamePosition();
         SetStartGameHeroPosition();
-
-        float currentX = instanceStartBlock.transform.position.x;
-        float endX = SetStartBlockPosition(startBlockGameSize).x;
-
-        if (currentX == endX)
-        {
-            startGamePosition = true;
-        }
     }
 
 
@@ -255,6 +265,70 @@ public class BoardManager : MonoBehaviour
         float changePosition = Mathf.Lerp(start, end, interpolated);
         
         instanceBlock.transform.position = new Vector3(changePosition, y, 1);   
+    }
+
+
+    IEnumerator MovingHero()
+    {
+        float endTime = 500;
+        float time = 0;
+
+        float y = instanceHero.transform.position.y;
+        float currentX = instanceHero.transform.position.x;
+        float start = currentX;
+        float endX = (stickPosition.x * 2) - (currentX + heroWidth + heroWidth / 4);
+
+        float stepX = 0;
+
+        float stickStartX = Screen.width * (START_BLOCK_WIDTH_RATIO - 0.5f);
+        float stickEndX = stickPosition.x + (stickPosition.x - stickStartX);
+        float lc = instanceBlock.transform.position.x - GetIconSize(instanceBlock).x / 2;
+        float rc = instanceBlock.transform.position.x + GetIconSize(instanceBlock).x;
+
+        while (time < endTime)
+        {
+            time += 10;
+
+            if (stickEndX >= lc && stickEndX <= rc)
+            {
+                endX = instanceBlock.transform.position.x;
+                stepX = (endX - start) / (endTime / 10f);
+
+                instanceHero.transform.position += new Vector3(stepX, 0, 0);
+            }
+            else
+            {
+                stepX = (endX - start) / (endTime / 10f);
+
+                instanceHero.transform.position += new Vector3(stepX, 0, 0);
+
+                if ((int)instanceHero.transform.position.x == (int)endX)
+                {
+                    print("выключай box collider 2d, пора мне падать))");
+                }
+            }
+
+            yield return new WaitForSeconds(0.01f);
+        }
+
+        instanceHero.GetComponent<Rigidbody2D>().simulated = false;
+        instanceHero.transform.position = new Vector3(endX, y, 1);
+    }
+
+    #endregion
+
+
+    #region Event handlers
+
+    void OnBuiltBridge(bool isBridgeBuilt, Vector3 stickPosition)
+    {
+        this.isBridgeBuilt = isBridgeBuilt;
+        this.stickPosition = stickPosition;
+
+        if (this.isBridgeBuilt)
+        {
+            StartCoroutine(MovingHero());
+        }
     }
 
     #endregion

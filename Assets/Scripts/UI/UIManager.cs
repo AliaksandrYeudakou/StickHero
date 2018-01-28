@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class UIManager : MonoBehaviour
 {
     #region Fields
@@ -59,5 +60,4 @@ public class UIManager : MonoBehaviour
     }
 
     #endregion
-
 }
