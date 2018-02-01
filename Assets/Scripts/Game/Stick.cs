@@ -9,6 +9,7 @@ public class Stick : MonoBehaviour
     #region Fields
 
     public static event Action<bool> GrowthOver;
+    public static event Action<Vector3> StickScale;
 
     [SerializeField] GameObject stick;
 
@@ -99,7 +100,9 @@ public class Stick : MonoBehaviour
         if (!isTouch)
         {
             canGrown = false;
+
             GrowthOver(true);
+            StickScale(transform.localScale);
         }
     }
 

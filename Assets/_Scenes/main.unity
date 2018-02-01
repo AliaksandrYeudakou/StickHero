@@ -750,6 +750,7 @@ MonoBehaviour:
   - {fileID: 1789147477777782, guid: 0798de4ce7ba6804789f7833b3b606e2, type: 2}
   hero: {fileID: 1216552208343836, guid: 919d53bd4566159409b9e9f2e429802c, type: 2}
   speed: 20
+  stick: {fileID: 228028692}
 --- !u!1 &1001193909
 GameObject:
   m_ObjectHideFlags: 0

@@ -61,7 +61,6 @@ public class GameManager : MonoBehaviour
 
     void InitialGameState()
     {
-        boardScript.SetStartUIPosition();
         stick.gameObject.SetActive(false);
     }
 

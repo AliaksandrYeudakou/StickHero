@@ -12,10 +12,19 @@ public class BoardManager : MonoBehaviour
     const float START_BLOCK_WIDTH_RATIO = 0.25f;
     const float BLOCK_UI_HEIGHT_RATIO = 0.2f;
     const float BLOCK_GAME_HEIGHT_RATIO = 0.3f;
+    const float HEIGHT_RATIO_HERO = 0.2f;
+    const float WIDTH_RATIO_HERO = 0.3f;
+    const float TIME_TO_MOVE = 0.2f;
+    const float TIME_TO_RUNNING = 0.7f;
+    const float TIME_TO_FALL = 0.5f;
+    const float TIME_TO_PUSH = 0.6f;
+
+    public static event Action<bool> BridgeFall;
 
     [SerializeField] GameObject startBlock; 
     [SerializeField] GameObject[] blocks;
     [SerializeField] GameObject hero;
+    [SerializeField] GameObject stick;
     [SerializeField] int speed;
 
     GameObject instanceStartBlock;
@@ -24,36 +33,94 @@ public class BoardManager : MonoBehaviour
 
     Vector2 startBlockUISize;
     Vector2 startBlockGameSize;
+    Vector2 heroIconSize;
 
-    Vector3 stickPosition;
+    Vector3 stickScale;
 
     Transform boardHolder;
 
-    float startBlockHeight;
-    float startBlockWidth;
+    float startCornerX;
+    float centrePositionX;
+    float startUIBlockPositionY;
+    float startGameBlockPositionX;
+    float startGameBlockPositionY;
+    float startGameHeroPositionX;
+    float heroGamePositionY;
+    float startUIHeroPositionY;
+    float startX_MovingHero;
+    float endXBefor_movingHero;
+    float endXAfter_movingHero;
+    float endX_movingHeroSuccess;
+    float stickEndX;
+    float endY_fallingHero;
+    float additionalBlock_leftCorner;
+    float additionalBlock_rightCorner;
+
+    float currentTime;
+    float moovingTime;
+    float fallingTime;
+    float testTime;
+
+    float heroHeight;
     float heroWidth;
+    float blockHeight;
+
     float end;
 
     bool sartGame;
     bool isBridgeBuilt;
 
-    // for test
-    bool successfullyReached;
+    bool mooving;
+    bool needToFall;
 
     #endregion
 
 
     #region Unity lifecycle
 
+    void Awake()
+    {
+        heroIconSize = GetIconSize(hero);
+
+        startBlockUISize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_UI_HEIGHT_RATIO);
+        startBlockGameSize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_GAME_HEIGHT_RATIO);
+
+        heroWidth = HEIGHT_RATIO_HERO * startBlockUISize.y;
+        heroHeight = WIDTH_RATIO_HERO * startBlockUISize.x;
+
+        blockHeight = SetBlockHeight();
+
+        startUIBlockPositionY = SetStartBlockPosition(startBlockUISize).y;
+
+        centrePositionX = 0;
+        startGameBlockPositionX = SetStartBlockPosition(startBlockGameSize).x;
+        startGameBlockPositionY = SetStartBlockPosition(startBlockGameSize).y;
+        
+        startGameHeroPositionX = -1 * Screen.width / 2 + startBlockGameSize.x / 2 + heroWidth / 2;
+        heroGamePositionY = -1 * (Screen.height / 2 - (startBlockGameSize.y + heroWidth / 2));
+
+        startUIHeroPositionY = -1 * (Screen.height / 2 - (startBlockUISize.y + heroWidth / 2));
+
+        endY_fallingHero = -1 * (Screen.height / 2 + heroHeight);
+
+        startCornerX = -1 * (Screen.width * (0.5f - START_BLOCK_WIDTH_RATIO));
+
+        startX_MovingHero = startGameHeroPositionX;
+    }
+
+
     void OnEnable()
     {
         StickController.BridgeBuilt += OnBuiltBridge;
+        Stick.StickScale += OnStickScale;
     }
 
 
     void Start()
     {
-        CreateBlockAndPostion();
+        SetupUIScene();
+
+        CreateBlockAndPostions();
     }
 
 
@@ -61,41 +128,29 @@ public class BoardManager : MonoBehaviour
     {
         if (sartGame && !isBridgeBuilt)
         {
-            SetStartGamePosition();
-            PushBlock(instanceBlock);
+            SetupStartGameBlockScale();
+            SetupStartingGamePositions();
+
+            PushBlock();
+        }
+
+        if (isBridgeBuilt)
+        {
+            MovingHero();
         }
     }
 
 
     void OnDisable()
     {
-        StickController.BridgeBuilt -= OnBuiltBridge;    
+        StickController.BridgeBuilt -= OnBuiltBridge;
+        Stick.StickScale -= OnStickScale;
     }
 
     #endregion
 
 
     #region Public methods
-
-    public void SetStartUIPosition()
-    {
-        boardHolder = new GameObject("Board").transform;
-
-        startBlockUISize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_UI_HEIGHT_RATIO);
-
-        float y = SetStartBlockPosition(startBlockUISize).y;
-
-        startBlock.transform.localScale = SetStartBlockScale(startBlockUISize, startBlock);
-        instanceStartBlock = Instantiate(startBlock, new Vector3(0, y, 1), Quaternion.identity);
-
-        FixObjectBoxCollider2D(instanceStartBlock);
-
-        SetStartUIHeroPosition();
-
-        instanceStartBlock.transform.SetParent(boardHolder);
-        instanceHero.transform.SetParent(boardHolder);
-    }
-
 
     public void ISGameStarted()
     {
@@ -107,62 +162,180 @@ public class BoardManager : MonoBehaviour
 
     #region Private methods
 
-    void SetStartGamePosition()
+    void SetupUIScene()
     {
-        SetStartBlockGamePosition();
-        SetStartGameHeroPosition();
+        boardHolder = new GameObject("Board").transform;
+
+        hero.transform.localScale = new Vector2(heroHeight / heroIconSize.x, heroWidth / heroIconSize.y);
+        startBlock.transform.localScale = SetStartBlockScale(startBlockUISize, startBlock);
+
+        instanceHero = Instantiate(hero, new Vector3(0, startUIHeroPositionY, 1), Quaternion.identity);
+        instanceStartBlock = Instantiate(startBlock, new Vector3(0, startUIBlockPositionY, 1), Quaternion.identity);
+
+        FixObjectBoxCollider2D(instanceHero);
+        FixObjectBoxCollider2D(instanceStartBlock);
+
+        instanceStartBlock.transform.SetParent(boardHolder);
+        instanceHero.transform.SetParent(boardHolder);
     }
 
 
-    void SetStartBlockGamePosition()
+
+    void SetupStartGameBlockScale()
     {
-        startBlockGameSize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_GAME_HEIGHT_RATIO);
         instanceStartBlock.transform.localScale = SetStartBlockScale(startBlockGameSize, startBlock);
 
         FixObjectBoxCollider2D(instanceStartBlock);
-
-        float start = instanceStartBlock.transform.position.x;
-        float end = SetStartBlockPosition(startBlockGameSize).x;
-        float interpolated = speed * Time.deltaTime;
-
-        float changeBlockPosition = Mathf.Lerp(start, end, interpolated);
-
-        float y = SetStartBlockPosition(startBlockGameSize).y;
-
-        instanceStartBlock.transform.position = new Vector3(changeBlockPosition, y, 1);
     }
 
 
-    void SetStartUIHeroPosition()
+    void SetupStartingGamePositions()
     {
-        float widthRatioHero = 0.35f;
-        float heightRatioHero = 0.25f;
+        if (currentTime <= TIME_TO_MOVE)
+        {
+            currentTime += Time.deltaTime;
 
-        float heroHeight = widthRatioHero * startBlockUISize.x;
-        heroWidth = heightRatioHero * startBlockUISize.y;
+            float interpolated = currentTime / TIME_TO_MOVE;
 
-        Vector2 heroIconSize = GetIconSize(hero);
+            float changeBlockPosition = Mathf.Lerp(centrePositionX, startGameBlockPositionX, interpolated);
+            float changeHeroPosition = Mathf.Lerp(centrePositionX, startGameHeroPositionX, interpolated);
 
-        hero.transform.localScale = new Vector2(heroHeight / heroIconSize.x, heroWidth / heroIconSize.y);
+            instanceStartBlock.transform.position = new Vector3(changeBlockPosition, startGameBlockPositionY, 1);
 
-        float y = Screen.height / 2 - (startBlockHeight + heroWidth / 2);
-
-        instanceHero = Instantiate(hero, new Vector3(0, -y, 1), Quaternion.identity);
-
-        FixObjectBoxCollider2D(instanceHero);
+            instanceHero.transform.position = new Vector3(changeHeroPosition, heroGamePositionY, 1);
+        }
     }
 
 
-    void SetStartGameHeroPosition()
+    void CreateBlockAndPostions()
     {
-        float interpolated = speed * Time.deltaTime;
+        GameObject block = blocks[Random.Range(0, blocks.Length)];
 
-        float y = Screen.height / 2 - (startBlockHeight + heroWidth / 2);
+        float blockWidth = GetIconSize(block).x;
 
-        float start = instanceHero.transform.position.x;
-        float end = -1 * Screen.width / 2 + startBlockWidth / 2 + heroWidth / 2;
+        float y = Screen.height / 2 - blockHeight / 2;
+        float x = Screen.width / 2 + blockWidth / 2;
 
-        instanceHero.transform.position = new Vector3(Mathf.Lerp(start, end, interpolated), -y, 1);
+        instanceBlock = Instantiate(block, new Vector3(x, -y, 1), Quaternion.identity);
+        instanceBlock.transform.SetParent(boardHolder);
+
+        instanceBlock.transform.localScale = SetBlockScale(block);
+
+        float start = instanceBlock.transform.position.x;
+        float pickPosition = startCornerX + blockWidth;
+        end = Random.Range(start - blockWidth, pickPosition);
+
+        additionalBlock_leftCorner = end - GetIconSize(instanceBlock).x / 2;
+        additionalBlock_rightCorner = end + GetIconSize(instanceBlock).x / 2;
+
+        if (additionalBlock_rightCorner < 0)
+        {
+            endX_movingHeroSuccess = additionalBlock_rightCorner + heroWidth / 1.5f;
+        }
+
+        else if (additionalBlock_rightCorner >= 0)
+        {
+            endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
+        }
+    }
+
+
+    void PushBlock()
+    {
+        if (testTime <= TIME_TO_PUSH)
+        {
+            testTime += Time.deltaTime;
+
+            float interpolated = testTime / TIME_TO_PUSH;
+
+            float changePosition = Mathf.Lerp(instanceBlock.transform.position.x, end, interpolated);
+
+            instanceBlock.transform.position = new Vector3(changePosition, instanceBlock.transform.position.y, 1);
+        }
+    }
+    
+
+    void MovingHero()
+    {
+        if (!mooving)
+        {
+            if (stickEndX >= additionalBlock_leftCorner && stickEndX <= additionalBlock_rightCorner)
+            {
+                RunHeroHere(endX_movingHeroSuccess);
+
+                if (instanceHero.transform.position.x == endX_movingHeroSuccess)
+                {
+                    mooving = true;
+                }
+            }
+
+            else
+            {
+                needToFall = true;
+            }
+
+            if (needToFall)
+            {
+                if (stickEndX < additionalBlock_leftCorner)
+                {
+                    RunHeroHere(endXBefor_movingHero);
+
+                    if (instanceHero.transform.position.x == endXBefor_movingHero)
+                    {
+                        BridgeFall(true);
+
+                        FallHero(endXBefor_movingHero);
+                    }
+                }
+
+                
+                else if (stickEndX > additionalBlock_rightCorner)
+                {
+                    RunHeroHere(endXAfter_movingHero);
+
+                    if (instanceHero.transform.position.x == endXAfter_movingHero)
+                    {
+                        BridgeFall(true);
+
+                        FallHero(endXAfter_movingHero);
+                    }
+                }
+                
+
+                if (instanceHero.transform.position.y == endY_fallingHero)
+                {
+                    mooving = true;
+                }
+            }
+        }    
+    }
+
+
+    void RunHeroHere(float endPosition)
+    {
+        if (moovingTime <= TIME_TO_RUNNING)
+        {
+            moovingTime += Time.deltaTime;
+
+            float interpolated = moovingTime / TIME_TO_RUNNING;
+
+            float changePos = Mathf.Lerp(startGameHeroPositionX, endPosition, interpolated);
+            instanceHero.transform.position = new Vector3(changePos, heroGamePositionY, 1);
+        }
+    }
+
+
+    void FallHero(float endX)
+    {
+        if (fallingTime <= TIME_TO_FALL)
+        {
+            fallingTime += Time.deltaTime;
+
+            float t = fallingTime / TIME_TO_FALL;
+
+            float fallTrajectory = Mathf.Lerp(heroGamePositionY, endY_fallingHero, t);
+            instanceHero.transform.position = new Vector3(endX, fallTrajectory, 1);
+        }
     }
 
 
@@ -174,8 +347,8 @@ public class BoardManager : MonoBehaviour
 
     Vector2 SetBlockSize(float widthRatioBlock, float heightRatioBlock)
     {
-        startBlockWidth = Screen.width * widthRatioBlock;
-        startBlockHeight = Screen.height * heightRatioBlock;
+        float startBlockWidth = Screen.width * widthRatioBlock;
+        float startBlockHeight = Screen.height * heightRatioBlock;
 
         return new Vector2(startBlockWidth, startBlockHeight);
     }
@@ -220,8 +393,6 @@ public class BoardManager : MonoBehaviour
 
     Vector3 SetBlockScale(GameObject instance)
     {
-        float blockHeight = SetBlockHeight();
-
         float blockIconSizeY = GetIconSize(instance).y;
 
         float blockScaleY = blockHeight / blockIconSizeY;
@@ -229,106 +400,24 @@ public class BoardManager : MonoBehaviour
         return new Vector3(1, blockScaleY, 1);
     }
 
-
-    void CreateBlockAndPostion()
-    {
-        GameObject block = blocks[Random.Range(0, blocks.Length)];
-
-        float blockHeight = SetBlockHeight();
-        float iconWidth = GetIconSize(block).x;
-
-        float y = Screen.height / 2 - blockHeight / 2;
-        float x = Screen.width / 2 + iconWidth / 2;
-
-        instanceBlock = Instantiate(block, new Vector3(x, -y, 1), Quaternion.identity);
-        instanceBlock.transform.SetParent(boardHolder);
-
-        instanceBlock.transform.localScale = SetBlockScale(block);
-
-        float corner = -1 * Screen.width / 2 + startBlockWidth;
-
-        float start = instanceBlock.transform.position.x;
-        float pickPosition = corner + iconWidth;
-        end = Random.Range(start - iconWidth, pickPosition);
-    }
-
-
-    void PushBlock(GameObject instance)
-    {
-        float slowly = 10;
-        float y = instanceBlock.transform.position.y;
-
-        float start = instanceBlock.transform.position.x;
-
-        float interpolated = slowly * Time.deltaTime;
-
-        float changePosition = Mathf.Lerp(start, end, interpolated);
-        
-        instanceBlock.transform.position = new Vector3(changePosition, y, 1);   
-    }
-
-
-    IEnumerator MovingHero()
-    {
-        float endTime = 500;
-        float time = 0;
-
-        float y = instanceHero.transform.position.y;
-        float currentX = instanceHero.transform.position.x;
-        float start = currentX;
-        float endX = (stickPosition.x * 2) - (currentX + heroWidth + heroWidth / 4);
-
-        float stepX = 0;
-
-        float stickStartX = Screen.width * (START_BLOCK_WIDTH_RATIO - 0.5f);
-        float stickEndX = stickPosition.x + (stickPosition.x - stickStartX);
-        float lc = instanceBlock.transform.position.x - GetIconSize(instanceBlock).x / 2;
-        float rc = instanceBlock.transform.position.x + GetIconSize(instanceBlock).x;
-
-        while (time < endTime)
-        {
-            time += 10;
-
-            if (stickEndX >= lc && stickEndX <= rc)
-            {
-                endX = instanceBlock.transform.position.x;
-                stepX = (endX - start) / (endTime / 10f);
-
-                instanceHero.transform.position += new Vector3(stepX, 0, 0);
-            }
-            else
-            {
-                stepX = (endX - start) / (endTime / 10f);
-
-                instanceHero.transform.position += new Vector3(stepX, 0, 0);
-
-                if ((int)instanceHero.transform.position.x == (int)endX)
-                {
-                    print("выключай box collider 2d, пора мне падать))");
-                }
-            }
-
-            yield return new WaitForSeconds(0.01f);
-        }
-
-        instanceHero.GetComponent<Rigidbody2D>().simulated = false;
-        instanceHero.transform.position = new Vector3(endX, y, 1);
-    }
-
     #endregion
 
 
     #region Event handlers
 
-    void OnBuiltBridge(bool isBridgeBuilt, Vector3 stickPosition)
+    void OnBuiltBridge(bool isBridgeBuilt)
     {
         this.isBridgeBuilt = isBridgeBuilt;
-        this.stickPosition = stickPosition;
+    }
 
-        if (this.isBridgeBuilt)
-        {
-            StartCoroutine(MovingHero());
-        }
+
+    void OnStickScale(Vector3 stickScale)
+    {
+        this.stickScale = stickScale;
+
+        stickEndX = startCornerX + stickScale.y * 4;
+        endXBefor_movingHero = stickEndX - heroWidth / 2;
+        endXAfter_movingHero = stickEndX + heroWidth / 2;
     }
 
     #endregion

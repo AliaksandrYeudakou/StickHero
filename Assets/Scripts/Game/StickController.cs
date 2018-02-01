@@ -10,11 +10,12 @@ public class StickController : MonoBehaviour
 
     const float HEIGHT_BLOCK_RATIO = 0.3f;
 
-    public static event Action<bool, Vector3> BridgeBuilt;
+    public static event Action<bool> BridgeBuilt;
 
     float endTime = 250f;
 
     bool canPutBridge;
+    bool needFallBridge;
 
     #endregion
 
@@ -24,6 +25,7 @@ public class StickController : MonoBehaviour
     void OnEnable()
     {
         Stick.GrowthOver += OnGrowthOver;
+        BoardManager.BridgeFall += OnBridgeFall;
     }
 
 
@@ -36,6 +38,7 @@ public class StickController : MonoBehaviour
     void OnDisable()
     {
         Stick.GrowthOver -= OnGrowthOver;
+        BoardManager.BridgeFall -= OnBridgeFall;
     }
 
     #endregion
@@ -54,33 +57,29 @@ public class StickController : MonoBehaviour
     }
 
 
-    IEnumerator PutBridge()
+    IEnumerator PutBridge(float euelerAngelZ)
     {
         float time = 0;
-
-        float startAngelX = transform.rotation.x;
-        float startAngelY = transform.rotation.y;
-        float startAngelZ = transform.rotation.z;
+        float step = 0;
 
         Quaternion from = transform.rotation;
-        Quaternion to = Quaternion.Euler(startAngelX, startAngelY, startAngelZ - 90f);
-
-        float step = 0;
+        Quaternion to = Quaternion.Euler(0, 0, euelerAngelZ);
 
         while (time < endTime)
         {
             time += 16;
 
-            step -= (startAngelZ - 90f) / (endTime / 16f);
+            step -= (euelerAngelZ) / (endTime / 16f);
 
             transform.rotation = Quaternion.RotateTowards(from, to, step);
 
             yield return new WaitForSeconds(0.016f);
         }
 
-        BridgeBuilt(true, transform.position); 
+        BridgeBuilt(true);
 
         canPutBridge = false;
+        needFallBridge = false;
     }
 
     #endregion
@@ -94,7 +93,18 @@ public class StickController : MonoBehaviour
 
         if (canPutBridge)
         {
-            StartCoroutine(PutBridge());
+            StartCoroutine(PutBridge(-90f));
+        }
+    }
+
+
+    void OnBridgeFall(bool isNeedFallBridge)
+    {
+        needFallBridge = isNeedFallBridge;
+
+        if (needFallBridge)
+        {
+            StartCoroutine(PutBridge(-180f));
         }
     }
 
