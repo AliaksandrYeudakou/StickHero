@@ -30,7 +30,10 @@ public class BoardManager : MonoBehaviour
 
     GameObject instanceStartBlock;
     GameObject instanceBlock;
+    GameObject additionalBlock;
     GameObject instanceHero;
+
+    GameObject instance;
 
     Vector2 startBlockUISize;
     Vector2 startBlockGameSize;
@@ -80,6 +83,13 @@ public class BoardManager : MonoBehaviour
 
     bool needDisplacement;
     bool needPushBlock;
+    bool startBlockRuined;
+
+    int offsetsCount;
+
+
+
+    bool needAdditionalPush;
 
     #endregion
 
@@ -135,7 +145,11 @@ public class BoardManager : MonoBehaviour
     {
         if (sartGame && !isBridgeBuilt)
         {
-            SetupStartGameBlockScale();
+            if (!startBlockRuined)
+            {
+                SetupStartGameBlockScale();
+            }
+            
             SetupStartingGamePositions();
 
             PushBlock();
@@ -150,7 +164,7 @@ public class BoardManager : MonoBehaviour
         {
             PushBlock();
 
-            if (instanceBlock.transform.position.y == end)
+            if (instanceBlock.transform.position.x == end)
             {
                 needPushBlock = false;
             }
@@ -226,26 +240,65 @@ public class BoardManager : MonoBehaviour
 
     void CreateBlockAndPostions()
     {
-        GameObject block = blocks[Random.Range(0, blocks.Length)];
+        ///
+        /// rewrite this method after..
+        ///
 
-        float blockWidth = GetIconSize(block).x;
+        if (offsetsCount == 2)
+        {
+            offsetsCount = 0;
+            DestroyObject(instanceBlock);
+        }
 
-        additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
-        float x = Screen.width / 2 + blockWidth / 2;
+        if (offsetsCount == 0)
+        {
+            GameObject block = blocks[Random.Range(0, blocks.Length)];
 
-        instanceBlock = Instantiate(block, new Vector3(x, additionalBlockPosY, 1), Quaternion.identity);
-        instanceBlock.transform.SetParent(boardHolder);
+            float blockWidth = GetIconSize(block).x;
 
-        instanceBlock.transform.localScale = SetBlockScale(block);
+            additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
+            float x = Screen.width / 2 + blockWidth / 2;
 
-        float start = instanceBlock.transform.position.x;
-        float pickPosition = startCornerX + blockWidth;
-        end = Random.Range(start - blockWidth, pickPosition);
+            instanceBlock = Instantiate(block, new Vector3(x, additionalBlockPosY, 1), Quaternion.identity);
+            instanceBlock.transform.SetParent(boardHolder);
 
-        additionalBlock_leftCorner = end - GetIconSize(instanceBlock).x / 2;
-        additionalBlock_rightCorner = end + GetIconSize(instanceBlock).x / 2;
+            instanceBlock.transform.localScale = SetBlockScale(block);
 
-        endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
+            float start = instanceBlock.transform.position.x;
+            float pickPosition = startCornerX + blockWidth;
+            end = Random.Range(start - blockWidth, pickPosition);
+
+            additionalBlock_leftCorner = end - GetIconSize(instanceBlock).x / 2;
+            additionalBlock_rightCorner = end + GetIconSize(instanceBlock).x / 2;
+
+            endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
+        }
+
+        if (offsetsCount == 1)
+        {
+            GameObject block = blocks[Random.Range(0, blocks.Length)];
+
+            float blockWidth = GetIconSize(block).x;
+
+            additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
+            float x = Screen.width / 2 + blockWidth / 2;
+
+            additionalBlock = Instantiate(block, new Vector3(x, additionalBlockPosY, 1), Quaternion.identity);
+            additionalBlock.transform.SetParent(boardHolder);
+
+            additionalBlock.transform.localScale = SetBlockScale(block);
+
+            float start = additionalBlock.transform.position.x;
+            float pickPosition = startCornerX + blockWidth;
+            end = Random.Range(start - blockWidth, pickPosition);
+
+            additionalBlock_leftCorner = end - GetIconSize(additionalBlock).x / 2;
+            additionalBlock_rightCorner = end + GetIconSize(additionalBlock).x / 2;
+
+            endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
+        }
+
+        offsetsCount++;
 
         displacementDistance = endX_movingHeroSuccess - startGameHeroPosX;
         displacementBlockPosX = startGameBlockPosX - displacementDistance;
@@ -261,17 +314,22 @@ public class BoardManager : MonoBehaviour
 
             float interpolated = testTime / TIME_TO_PUSH;
 
-            float changePosition = Mathf.Lerp(instanceBlock.transform.position.x, end, interpolated);
+            if (offsetsCount == 1)
+            {
+                float changePosition = Mathf.Lerp(instanceBlock.transform.position.x, end, interpolated);
 
-            instanceBlock.transform.position = new Vector3(changePosition, instanceBlock.transform.position.y, 1);
-        }
+                instanceBlock.transform.position = new Vector3(changePosition, instanceBlock.transform.position.y, 1);
+            }
 
-        if (instanceBlock.transform.position.x == end)
-        {
-            testTime = 0f;
+            if (offsetsCount == 2)
+            {
+                float changePosition = Mathf.Lerp(additionalBlock.transform.position.x, end, interpolated);
+
+                additionalBlock.transform.position = new Vector3(changePosition, instanceBlock.transform.position.y, 1);
+            }
         }
     }
-    
+
 
     void MovingObjects()
     {
@@ -291,13 +349,18 @@ public class BoardManager : MonoBehaviour
             {
                 DisplacementObjects();
 
-                DisplacementStick(true, displacementDistance); // at this moment
+                DisplacementStick(true, displacementDistance);
 
                 if (instanceHero.transform.position.x == startGameHeroPosX)
                 {
                     CreateBlockAndPostions();
 
+                    moovingTime = 0f;
+                    testTime = 0f;
+                    displacementTime = 0f;
+
                     mooving = true;
+                    isBridgeBuilt = false;  
                     needPushBlock = true;
                     needDisplacement = false;
                 }
@@ -339,6 +402,8 @@ public class BoardManager : MonoBehaviour
                 if (instanceHero.transform.position.y == endY_fallingHero)
                 {
                     mooving = true;
+
+                    isBridgeBuilt = false;
                 }
             }
         }    
@@ -380,14 +445,55 @@ public class BoardManager : MonoBehaviour
             displacementTime += Time.deltaTime;
 
             float t = displacementTime / DISPLACEMENT_TIME;
-
+            
             float heroTrajectory = Mathf.Lerp(endX_movingHeroSuccess, startGameHeroPosX, t);
-            float startBlockTrajectory = Mathf.Lerp(startGameBlockPosX, displacementBlockPosX, t);
-            float additionalBlockTrajectory = Mathf.Lerp(end, displacementAddBlockPosX, t);
 
             instanceHero.transform.position = new Vector3(heroTrajectory, heroGamePositionY, 1);
-            instanceStartBlock.transform.position = new Vector3(startBlockTrajectory, startGameBlockPosY, 1);
-            instanceBlock.transform.position = new Vector3(additionalBlockTrajectory, additionalBlockPosY, 1);
+               
+            if (offsetsCount == 1)
+            {  
+                float additionalBlockTrajectory = Mathf.Lerp(end, displacementAddBlockPosX, t);
+                float startBlockTrajectory = Mathf.Lerp(startGameBlockPosX, (-1 * Screen.width), t);
+
+                instanceBlock.transform.position = new Vector3(additionalBlockTrajectory, additionalBlockPosY, 1);
+
+                if (!startBlockRuined)
+                {
+                    instanceStartBlock.transform.position = new Vector3(startBlockTrajectory, startGameBlockPosY, 1);
+
+                    if (instanceStartBlock.transform.position.x == (-1 * Screen.width))
+                    {
+                        startBlockRuined = true;
+                        DestroyObject(instanceStartBlock);
+                    }
+                }
+                
+                if (needAdditionalPush)
+                {
+                    float additionalPushTrajectory = Mathf.Lerp(displacementAddBlockPosX, (-1 * Screen.width), t);
+                    additionalBlock.transform.position = new Vector3(additionalPushTrajectory, additionalBlockPosY, 1);
+
+                    if (additionalBlock.transform.position.x == (-1 * Screen.width))
+                    {
+                        needAdditionalPush = false;
+                        DestroyObject(additionalBlock);
+                    }
+                }
+            }
+
+            if (offsetsCount == 2)
+            {
+                float additionalBlockTrajectory = Mathf.Lerp(end, displacementAddBlockPosX, t);
+                additionalBlock.transform.position = new Vector3(additionalBlockTrajectory, additionalBlockPosY, 1);
+
+                float newTrajectory = Mathf.Lerp(displacementAddBlockPosX, (-1 * Screen.width), t);
+                instanceBlock.transform.position = new Vector3(newTrajectory, additionalBlockPosY, 1);
+
+                if (additionalBlock.transform.position.x == displacementAddBlockPosX)
+                {
+                    needAdditionalPush = true;
+                }
+            }
         }
     }
 
@@ -461,6 +567,8 @@ public class BoardManager : MonoBehaviour
     void OnBuiltBridge(bool isBridgeBuilt)
     {
         this.isBridgeBuilt = isBridgeBuilt;
+
+        mooving = false;
     }
 
 

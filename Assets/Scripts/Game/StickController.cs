@@ -22,6 +22,11 @@ public class StickController : MonoBehaviour
     Transform rotateBoard;
 
     float displacementTime;
+    float boardPositionX;
+    float boardPositionY;
+
+    float startX;
+    float endX;
 
     bool isClicked;
     bool canGrown;
@@ -91,15 +96,15 @@ public class StickController : MonoBehaviour
     {
         float widthRatio = 0.25f;
 
-        float x = -1 * (Screen.width * (0.5f - widthRatio));
-        float y = -1 * (Screen.height * (0.5f - HEIGHT_BLOCK_RATIO));
+        boardPositionX = -1 * (Screen.width * (0.5f - widthRatio));
+        boardPositionY = -1 * (Screen.height * (0.5f - HEIGHT_BLOCK_RATIO));
 
         rotateBoard = new GameObject("rotateBoard").transform;
 
-        instanceStick = Instantiate(stick, new Vector3(0, 0, 2), Quaternion.identity);
+        instanceStick = Instantiate(stick, new Vector3(0, 0, 1), Quaternion.identity);
         instanceStick.transform.SetParent(rotateBoard);
 
-        rotateBoard.transform.position = new Vector3(x, y, 1);
+        rotateBoard.transform.position = new Vector3(boardPositionX, boardPositionY, 1);
 
     }
 
@@ -149,12 +154,17 @@ public class StickController : MonoBehaviour
 
             float t = displacementTime / DISPLACEMENT_TIME;
 
-            // rewrite here
+            float changePos = Mathf.Lerp(startX, newPosition, t);
 
-            /*if (Mathf.Approximately())
+            instanceStick.transform.position = new Vector3(changePos, boardPositionY, 1);
+
+            if (Mathf.Approximately(instanceStick.transform.position.x, newPosition))
             {
-                // палочке нужно расти
-            }*/
+                SetGameObjectPosition();
+                canGrown = true;
+
+                displacementTime = 0f;
+            }
         }
     }
 
@@ -179,6 +189,8 @@ public class StickController : MonoBehaviour
             }
 
             StickScale(instanceStick.transform.localScale);
+
+            startX = boardPositionX + instanceStick.transform.localScale.y * 2;
         }
     }
 
@@ -198,9 +210,11 @@ public class StickController : MonoBehaviour
     {
         isChangePosition = needChangePosition;
 
+        endX = startX - displacementDisctance;
+
         if (isChangePosition)
         {
-            DisplacementStick(0);
+            DisplacementStick(endX);
         }
     }
 
