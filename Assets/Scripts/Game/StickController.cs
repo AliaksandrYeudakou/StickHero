@@ -33,6 +33,24 @@ public class StickController : MonoBehaviour
     bool canPutBridge;
     bool needFallBridge;
     bool isChangePosition;
+    bool isGameOver;
+
+    #endregion
+
+
+    #region Properties
+
+    public bool CanGrown
+    {
+        get
+        {
+            return canGrown;
+        }
+        set
+        {
+            canGrown = value;
+        }
+    }
 
     #endregion
 
@@ -44,6 +62,8 @@ public class StickController : MonoBehaviour
         GameScreen.OnScreenTouch += OnGameScreenTouch;
         BoardManager.DisplacementStick += OnDisplacementStick;
         BoardManager.BridgeFall += OnBridgeFall;
+        BoardManager.HeroFell += GameOver;
+        GameManager.GameIsRestarted += RestartStickController;
     }
 
 
@@ -67,32 +87,16 @@ public class StickController : MonoBehaviour
         GameScreen.OnScreenTouch -= OnGameScreenTouch;
         BoardManager.DisplacementStick -= OnDisplacementStick;
         BoardManager.BridgeFall -= OnBridgeFall;
+        BoardManager.HeroFell -= GameOver;
+        GameManager.GameIsRestarted -= RestartStickController;
     }
 
     #endregion
-
-
-    #region Properties
-
-    public bool CanGrown
-    {
-        get
-        {
-            return canGrown;
-        }
-        set
-        {
-            canGrown = value;
-        }
-    }
-
-    #endregion
-
 
 
     #region Private methods
 
-    void SetGameObjectPosition()
+    public void SetGameObjectPosition()
     {
         float widthRatio = 0.25f;
 
@@ -105,9 +109,7 @@ public class StickController : MonoBehaviour
         instanceStick.transform.SetParent(rotateBoard);
 
         rotateBoard.transform.position = new Vector3(boardPositionX, boardPositionY, 1);
-
     }
-
 
     void GrawthStick()
     {
@@ -199,10 +201,13 @@ public class StickController : MonoBehaviour
     {
         needFallBridge = isNeedFallBridge;
 
-        if (needFallBridge)
+        if (!isClicked)
         {
-            StartCoroutine(PutBridge(-180f));
-        }
+            if (needFallBridge)
+            {
+                StartCoroutine(PutBridge(-180f));
+            }
+        }   
     }
 
 
@@ -215,6 +220,26 @@ public class StickController : MonoBehaviour
         if (isChangePosition)
         {
             DisplacementStick(endX);
+        }
+    }
+
+
+    void GameOver(bool gameOver)
+    {
+        isGameOver = gameOver;
+
+        if (isGameOver)
+        {
+            Destroy(rotateBoard.transform.gameObject);
+        }
+    }
+
+
+    void RestartStickController(bool needrestart)
+    {
+        if (needrestart)
+        {
+            SetGameObjectPosition();
         }
     }
 

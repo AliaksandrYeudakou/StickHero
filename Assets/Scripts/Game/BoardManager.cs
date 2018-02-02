@@ -22,6 +22,7 @@ public class BoardManager : MonoBehaviour
 
     public static event Action<bool> BridgeFall;
     public static event Action<bool, float> DisplacementStick;
+    public static event Action<bool> HeroFell;
 
     [SerializeField] GameObject startBlock; 
     [SerializeField] GameObject[] blocks;
@@ -84,12 +85,9 @@ public class BoardManager : MonoBehaviour
     bool needDisplacement;
     bool needPushBlock;
     bool startBlockRuined;
+    bool needAdditionalPush;
 
     int offsetsCount;
-
-
-
-    bool needAdditionalPush;
 
     #endregion
 
@@ -188,10 +186,52 @@ public class BoardManager : MonoBehaviour
         sartGame = true;
     }
 
+
+    public void SetupGameScene()
+    {
+        DestroyObject(additionalBlock);
+        DestroyObject(instanceBlock);
+        DestroyObject(instanceStartBlock);
+
+        instanceHero.transform.position = new Vector3(startGameHeroPosX, heroGamePositionY, 1);
+
+        instanceStartBlock = Instantiate(startBlock, new Vector3(startGameBlockPosX, startGameBlockPosY, 1), Quaternion.identity);
+        instanceStartBlock.transform.localScale = SetStartBlockScale(startBlockGameSize, startBlock);
+
+        instanceStartBlock.transform.SetParent(boardHolder);
+
+        MyReset();
+        CreateBlockAndPostions();
+    }
+
     #endregion
 
 
     #region Private methods
+
+    // test below
+    void MyReset()
+    {
+        isBridgeBuilt = false;
+
+        mooving = true;
+        needToFall = false;
+
+        needDisplacement = false;
+        needPushBlock = true;
+        startBlockRuined = false;
+        needAdditionalPush = false;
+        sartGame = false;
+
+        offsetsCount = 0;
+        currentTime = 0;
+        moovingTime = 0;
+        fallingTime = 0;
+        displacementTime = 0;
+        testTime = 0;
+    }
+    // end test
+
 
     void SetupUIScene()
     {
@@ -397,9 +437,8 @@ public class BoardManager : MonoBehaviour
                         FallHero(endXAfter_movingHero);
                     }
                 }
-                
 
-                if (instanceHero.transform.position.y == endY_fallingHero)
+                if (Mathf.Approximately(instanceHero.transform.position.y, endY_fallingHero))
                 {
                     mooving = true;
 
@@ -434,6 +473,13 @@ public class BoardManager : MonoBehaviour
 
             float fallTrajectory = Mathf.Lerp(heroGamePositionY, endY_fallingHero, t);
             instanceHero.transform.position = new Vector3(endX, fallTrajectory, 1);
+        }
+
+        if (Mathf.Approximately(instanceHero.transform.position.y, endY_fallingHero))
+        {
+            mooving = true;
+            instanceHero.transform.position = new Vector3(endX, (-1 * (Screen.height)), 1);
+            HeroFell(true);
         }
     }
 

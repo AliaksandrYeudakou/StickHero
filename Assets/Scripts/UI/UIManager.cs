@@ -11,6 +11,10 @@ public class UIManager : MonoBehaviour
 
     [SerializeField] GameObject gameScreen;
     [SerializeField] GameObject mainScreen;
+    [SerializeField] GameObject gameOverScreen;
+    [SerializeField] GameObject stickController;
+
+    bool isGameOver;
 
     #endregion
 
@@ -32,6 +36,18 @@ public class UIManager : MonoBehaviour
         InitialUIState();
     }
 
+
+    void OnEnable()
+    {
+        BoardManager.HeroFell += GameOver;
+    }
+
+
+    void OnDisable()
+    {
+        BoardManager.HeroFell -= GameOver;
+    }
+
     #endregion
 
 
@@ -43,20 +59,46 @@ public class UIManager : MonoBehaviour
         gameScreen.gameObject.SetActive(true);
     }
 
+
+    public void GameScreenRestartState()
+    {
+        stickController.gameObject.SetActive(false);
+        gameOverScreen.gameObject.SetActive(false);
+        gameScreen.gameObject.SetActive(true);
+    }
+
     #endregion
 
 
     #region Private methods
 
-    private void HideGameScreen()
+    private void HideScreens()
     {
         gameScreen.gameObject.SetActive(false);
+        gameOverScreen.gameObject.SetActive(false);
     }
 
 
     private void InitialUIState()
     {
-        HideGameScreen();
+        mainScreen.gameObject.SetActive(true);
+        HideScreens();
+    }
+
+    #endregion
+
+
+    #region Event handlers
+
+    void GameOver(bool gameOver)
+    {
+        isGameOver = gameOver;
+
+        if (isGameOver)
+        {
+            gameScreen.gameObject.SetActive(false);
+            gameOverScreen.gameObject.SetActive(true);
+        }
     }
 
     #endregion

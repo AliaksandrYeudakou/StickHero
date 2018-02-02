@@ -1,17 +1,21 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 
 public class GameManager : MonoBehaviour
 {
     #region Fields
 
+    public static event Action<bool> GameIsRestarted;
+
     public static GameManager instance = null;
 
     [SerializeField] GameObject stickController;
 
     BoardManager boardScript;
+    StickController stickScript;
 
     #endregion
 
@@ -33,6 +37,7 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         boardScript = GetComponent<BoardManager>();
+        stickScript = GetComponent<StickController>();
 
         CameraSetting();
 
@@ -52,6 +57,18 @@ public class GameManager : MonoBehaviour
 
         stickController.gameObject.SetActive(true);
         stickController.GetComponent<StickController>().CanGrown = true;
+    }
+
+
+    public void RestartGame()
+    {
+        UIManager.instance.GameScreenRestartState();
+
+        boardScript.SetupGameScene();
+
+        stickController.gameObject.SetActive(true);
+        stickController.GetComponent<StickController>().CanGrown = true;
+        GameIsRestarted(true);
     }
 
     #endregion
