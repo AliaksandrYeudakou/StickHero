@@ -9,13 +9,25 @@ public class StickController : MonoBehaviour
     #region Fields
 
     const float HEIGHT_BLOCK_RATIO = 0.3f;
+    const float DISPLACEMENT_TIME = 0.2f;
+    const float ROTATION_TIME = 250f;
 
     public static event Action<bool> BridgeBuilt;
+    public static event Action<Vector3> StickScale;
 
-    float endTime = 250f;
+    [SerializeField] GameObject stick;
 
+    GameObject instanceStick;
+
+    Transform rotateBoard;
+
+    float displacementTime;
+
+    bool isClicked;
+    bool canGrown;
     bool canPutBridge;
     bool needFallBridge;
+    bool isChangePosition;
 
     #endregion
 
@@ -24,7 +36,8 @@ public class StickController : MonoBehaviour
 
     void OnEnable()
     {
-        Stick.GrowthOver += OnGrowthOver;
+        GameScreen.OnScreenTouch += OnGameScreenTouch;
+        BoardManager.DisplacementStick += OnDisplacementStick;
         BoardManager.BridgeFall += OnBridgeFall;
     }
 
@@ -35,13 +48,41 @@ public class StickController : MonoBehaviour
     }
 
 
+    void Update()
+    {
+        if (isClicked && canGrown)
+        {
+            GrawthStick();
+        }
+    }
+
+
     void OnDisable()
     {
-        Stick.GrowthOver -= OnGrowthOver;
+        GameScreen.OnScreenTouch -= OnGameScreenTouch;
+        BoardManager.DisplacementStick -= OnDisplacementStick;
         BoardManager.BridgeFall -= OnBridgeFall;
     }
 
     #endregion
+
+
+    #region Properties
+
+    public bool CanGrown
+    {
+        get
+        {
+            return canGrown;
+        }
+        set
+        {
+            canGrown = value;
+        }
+    }
+
+    #endregion
+
 
 
     #region Private methods
@@ -53,7 +94,24 @@ public class StickController : MonoBehaviour
         float x = -1 * (Screen.width * (0.5f - widthRatio));
         float y = -1 * (Screen.height * (0.5f - HEIGHT_BLOCK_RATIO));
 
-        transform.position = new Vector3(x, y, 1);
+        rotateBoard = new GameObject("rotateBoard").transform;
+
+        instanceStick = Instantiate(stick, new Vector3(0, 0, 2), Quaternion.identity);
+        instanceStick.transform.SetParent(rotateBoard);
+
+        rotateBoard.transform.position = new Vector3(x, y, 1);
+
+    }
+
+
+    void GrawthStick()
+    {
+        float x = instanceStick.transform.position.x;
+        float y = instanceStick.transform.position.y;
+        float scaleY = instanceStick.transform.localScale.y;
+        instanceStick.transform.localScale = new Vector3(1, scaleY + 1, 1);
+
+        instanceStick.transform.position = new Vector3(x, y + 2, 1);
     }
 
 
@@ -62,16 +120,16 @@ public class StickController : MonoBehaviour
         float time = 0;
         float step = 0;
 
-        Quaternion from = transform.rotation;
+        Quaternion from = rotateBoard.transform.rotation;
         Quaternion to = Quaternion.Euler(0, 0, euelerAngelZ);
 
-        while (time < endTime)
+        while (time < ROTATION_TIME)
         {
             time += 16;
 
-            step -= (euelerAngelZ) / (endTime / 16f);
+            step -= (euelerAngelZ) / (ROTATION_TIME / 16f);
 
-            transform.rotation = Quaternion.RotateTowards(from, to, step);
+            rotateBoard.transform.rotation = Quaternion.RotateTowards(from, to, step);
 
             yield return new WaitForSeconds(0.016f);
         }
@@ -82,18 +140,45 @@ public class StickController : MonoBehaviour
         needFallBridge = false;
     }
 
+
+    void DisplacementStick(float newPosition)
+    {
+        if (displacementTime <= DISPLACEMENT_TIME)
+        {
+            displacementTime += Time.deltaTime;
+
+            float t = displacementTime / DISPLACEMENT_TIME;
+
+            // rewrite here
+
+            /*if (Mathf.Approximately())
+            {
+                // палочке нужно расти
+            }*/
+        }
+    }
+
     #endregion
 
 
     #region Event handlers
 
-    void OnGrowthOver(bool isGrowthOver)
+    void OnGameScreenTouch(bool isTouch)
     {
-        canPutBridge = isGrowthOver;
+        isClicked = isTouch;
 
-        if (canPutBridge)
+        if (!isTouch)
         {
-            StartCoroutine(PutBridge(-90f));
+            canGrown = false;
+
+            canPutBridge = true;
+
+            if (canPutBridge)
+            {
+                StartCoroutine(PutBridge(-90f));
+            }
+
+            StickScale(instanceStick.transform.localScale);
         }
     }
 
@@ -105,6 +190,17 @@ public class StickController : MonoBehaviour
         if (needFallBridge)
         {
             StartCoroutine(PutBridge(-180f));
+        }
+    }
+
+
+    void OnDisplacementStick(bool needChangePosition, float displacementDisctance)
+    {
+        isChangePosition = needChangePosition;
+
+        if (isChangePosition)
+        {
+            DisplacementStick(0);
         }
     }
 

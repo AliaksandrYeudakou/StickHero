@@ -9,7 +9,7 @@ public class GameManager : MonoBehaviour
 
     public static GameManager instance = null;
 
-    [SerializeField] GameObject stick;
+    [SerializeField] GameObject stickController;
 
     BoardManager boardScript;
 
@@ -50,8 +50,8 @@ public class GameManager : MonoBehaviour
 
         boardScript.ISGameStarted();
 
-        stick.gameObject.SetActive(true);
-        stick.GetComponent<Stick>().CanGrown = true;
+        stickController.gameObject.SetActive(true);
+        stickController.GetComponent<StickController>().CanGrown = true;
     }
 
     #endregion
@@ -61,7 +61,7 @@ public class GameManager : MonoBehaviour
 
     void InitialGameState()
     {
-        stick.gameObject.SetActive(false);
+        stickController.gameObject.SetActive(false);
     }
 
 

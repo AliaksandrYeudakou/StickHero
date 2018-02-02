@@ -18,13 +18,14 @@ public class BoardManager : MonoBehaviour
     const float TIME_TO_RUNNING = 0.7f;
     const float TIME_TO_FALL = 0.5f;
     const float TIME_TO_PUSH = 0.6f;
+    const float DISPLACEMENT_TIME = 0.2f;
 
     public static event Action<bool> BridgeFall;
+    public static event Action<bool, float> DisplacementStick;
 
     [SerializeField] GameObject startBlock; 
     [SerializeField] GameObject[] blocks;
     [SerializeField] GameObject hero;
-    [SerializeField] GameObject stick;
     [SerializeField] int speed;
 
     GameObject instanceStartBlock;
@@ -40,13 +41,13 @@ public class BoardManager : MonoBehaviour
     Transform boardHolder;
 
     float startCornerX;
-    float centrePositionX;
     float startUIBlockPositionY;
-    float startGameBlockPositionX;
-    float startGameBlockPositionY;
-    float startGameHeroPositionX;
+    float startGameBlockPosX;
+    float startGameBlockPosY;
+    float startGameHeroPosX;
     float heroGamePositionY;
     float startUIHeroPositionY;
+    float additionalBlockPosY;
     float startX_MovingHero;
     float endXBefor_movingHero;
     float endXAfter_movingHero;
@@ -55,10 +56,14 @@ public class BoardManager : MonoBehaviour
     float endY_fallingHero;
     float additionalBlock_leftCorner;
     float additionalBlock_rightCorner;
+    float displacementDistance;
+    float displacementBlockPosX;
+    float displacementAddBlockPosX;
 
     float currentTime;
     float moovingTime;
     float fallingTime;
+    float displacementTime;
     float testTime;
 
     float heroHeight;
@@ -73,6 +78,9 @@ public class BoardManager : MonoBehaviour
     bool mooving;
     bool needToFall;
 
+    bool needDisplacement;
+    bool needPushBlock;
+
     #endregion
 
 
@@ -81,6 +89,8 @@ public class BoardManager : MonoBehaviour
     void Awake()
     {
         heroIconSize = GetIconSize(hero);
+
+        startCornerX = -1 * (Screen.width * (0.5f - START_BLOCK_WIDTH_RATIO));
 
         startBlockUISize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_UI_HEIGHT_RATIO);
         startBlockGameSize = SetBlockSize(START_BLOCK_WIDTH_RATIO, BLOCK_GAME_HEIGHT_RATIO);
@@ -92,27 +102,24 @@ public class BoardManager : MonoBehaviour
 
         startUIBlockPositionY = SetStartBlockPosition(startBlockUISize).y;
 
-        centrePositionX = 0;
-        startGameBlockPositionX = SetStartBlockPosition(startBlockGameSize).x;
-        startGameBlockPositionY = SetStartBlockPosition(startBlockGameSize).y;
-        
-        startGameHeroPositionX = -1 * Screen.width / 2 + startBlockGameSize.x / 2 + heroWidth / 2;
+        startGameBlockPosX = SetStartBlockPosition(startBlockGameSize).x;
+        startGameBlockPosY = SetStartBlockPosition(startBlockGameSize).y;
+
+        startGameHeroPosX = startCornerX - heroWidth / 1.5f;
         heroGamePositionY = -1 * (Screen.height / 2 - (startBlockGameSize.y + heroWidth / 2));
 
         startUIHeroPositionY = -1 * (Screen.height / 2 - (startBlockUISize.y + heroWidth / 2));
 
         endY_fallingHero = -1 * (Screen.height / 2 + heroHeight);
 
-        startCornerX = -1 * (Screen.width * (0.5f - START_BLOCK_WIDTH_RATIO));
-
-        startX_MovingHero = startGameHeroPositionX;
+        startX_MovingHero = startGameHeroPosX;
     }
 
 
     void OnEnable()
     {
         StickController.BridgeBuilt += OnBuiltBridge;
-        Stick.StickScale += OnStickScale;
+        StickController.StickScale += OnStickScale;
     }
 
 
@@ -136,7 +143,17 @@ public class BoardManager : MonoBehaviour
 
         if (isBridgeBuilt)
         {
-            MovingHero();
+            MovingObjects();
+        }
+
+        if (needPushBlock)
+        {
+            PushBlock();
+
+            if (instanceBlock.transform.position.y == end)
+            {
+                needPushBlock = false;
+            }
         }
     }
 
@@ -144,7 +161,7 @@ public class BoardManager : MonoBehaviour
     void OnDisable()
     {
         StickController.BridgeBuilt -= OnBuiltBridge;
-        Stick.StickScale -= OnStickScale;
+        StickController.StickScale -= OnStickScale;
     }
 
     #endregion
@@ -197,10 +214,10 @@ public class BoardManager : MonoBehaviour
 
             float interpolated = currentTime / TIME_TO_MOVE;
 
-            float changeBlockPosition = Mathf.Lerp(centrePositionX, startGameBlockPositionX, interpolated);
-            float changeHeroPosition = Mathf.Lerp(centrePositionX, startGameHeroPositionX, interpolated);
+            float changeBlockPosition = Mathf.Lerp(0, startGameBlockPosX, interpolated);
+            float changeHeroPosition = Mathf.Lerp(0, startGameHeroPosX, interpolated);
 
-            instanceStartBlock.transform.position = new Vector3(changeBlockPosition, startGameBlockPositionY, 1);
+            instanceStartBlock.transform.position = new Vector3(changeBlockPosition, startGameBlockPosY, 1);
 
             instanceHero.transform.position = new Vector3(changeHeroPosition, heroGamePositionY, 1);
         }
@@ -213,10 +230,10 @@ public class BoardManager : MonoBehaviour
 
         float blockWidth = GetIconSize(block).x;
 
-        float y = Screen.height / 2 - blockHeight / 2;
+        additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
         float x = Screen.width / 2 + blockWidth / 2;
 
-        instanceBlock = Instantiate(block, new Vector3(x, -y, 1), Quaternion.identity);
+        instanceBlock = Instantiate(block, new Vector3(x, additionalBlockPosY, 1), Quaternion.identity);
         instanceBlock.transform.SetParent(boardHolder);
 
         instanceBlock.transform.localScale = SetBlockScale(block);
@@ -228,15 +245,11 @@ public class BoardManager : MonoBehaviour
         additionalBlock_leftCorner = end - GetIconSize(instanceBlock).x / 2;
         additionalBlock_rightCorner = end + GetIconSize(instanceBlock).x / 2;
 
-        if (additionalBlock_rightCorner < 0)
-        {
-            endX_movingHeroSuccess = additionalBlock_rightCorner + heroWidth / 1.5f;
-        }
+        endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
 
-        else if (additionalBlock_rightCorner >= 0)
-        {
-            endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
-        }
+        displacementDistance = endX_movingHeroSuccess - startGameHeroPosX;
+        displacementBlockPosX = startGameBlockPosX - displacementDistance;
+        displacementAddBlockPosX = end - displacementDistance;
     }
 
 
@@ -252,20 +265,41 @@ public class BoardManager : MonoBehaviour
 
             instanceBlock.transform.position = new Vector3(changePosition, instanceBlock.transform.position.y, 1);
         }
+
+        if (instanceBlock.transform.position.x == end)
+        {
+            testTime = 0f;
+        }
     }
     
 
-    void MovingHero()
+    void MovingObjects()
     {
         if (!mooving)
         {
             if (stickEndX >= additionalBlock_leftCorner && stickEndX <= additionalBlock_rightCorner)
             {
-                RunHeroHere(endX_movingHeroSuccess);
+                RunHero(endX_movingHeroSuccess);
 
                 if (instanceHero.transform.position.x == endX_movingHeroSuccess)
                 {
+                    needDisplacement = true;
+                }
+            }
+
+            if (needDisplacement)
+            {
+                DisplacementObjects();
+
+                DisplacementStick(true, displacementDistance); // at this moment
+
+                if (instanceHero.transform.position.x == startGameHeroPosX)
+                {
+                    CreateBlockAndPostions();
+
                     mooving = true;
+                    needPushBlock = true;
+                    needDisplacement = false;
                 }
             }
 
@@ -278,7 +312,7 @@ public class BoardManager : MonoBehaviour
             {
                 if (stickEndX < additionalBlock_leftCorner)
                 {
-                    RunHeroHere(endXBefor_movingHero);
+                    RunHero(endXBefor_movingHero);
 
                     if (instanceHero.transform.position.x == endXBefor_movingHero)
                     {
@@ -291,7 +325,7 @@ public class BoardManager : MonoBehaviour
                 
                 else if (stickEndX > additionalBlock_rightCorner)
                 {
-                    RunHeroHere(endXAfter_movingHero);
+                    RunHero(endXAfter_movingHero);
 
                     if (instanceHero.transform.position.x == endXAfter_movingHero)
                     {
@@ -311,7 +345,7 @@ public class BoardManager : MonoBehaviour
     }
 
 
-    void RunHeroHere(float endPosition)
+    void RunHero(float endPosition)
     {
         if (moovingTime <= TIME_TO_RUNNING)
         {
@@ -319,7 +353,7 @@ public class BoardManager : MonoBehaviour
 
             float interpolated = moovingTime / TIME_TO_RUNNING;
 
-            float changePos = Mathf.Lerp(startGameHeroPositionX, endPosition, interpolated);
+            float changePos = Mathf.Lerp(startGameHeroPosX, endPosition, interpolated);
             instanceHero.transform.position = new Vector3(changePos, heroGamePositionY, 1);
         }
     }
@@ -335,6 +369,25 @@ public class BoardManager : MonoBehaviour
 
             float fallTrajectory = Mathf.Lerp(heroGamePositionY, endY_fallingHero, t);
             instanceHero.transform.position = new Vector3(endX, fallTrajectory, 1);
+        }
+    }
+
+
+    void DisplacementObjects()
+    {
+        if (displacementTime <= DISPLACEMENT_TIME)
+        {
+            displacementTime += Time.deltaTime;
+
+            float t = displacementTime / DISPLACEMENT_TIME;
+
+            float heroTrajectory = Mathf.Lerp(endX_movingHeroSuccess, startGameHeroPosX, t);
+            float startBlockTrajectory = Mathf.Lerp(startGameBlockPosX, displacementBlockPosX, t);
+            float additionalBlockTrajectory = Mathf.Lerp(end, displacementAddBlockPosX, t);
+
+            instanceHero.transform.position = new Vector3(heroTrajectory, heroGamePositionY, 1);
+            instanceStartBlock.transform.position = new Vector3(startBlockTrajectory, startGameBlockPosY, 1);
+            instanceBlock.transform.position = new Vector3(additionalBlockTrajectory, additionalBlockPosY, 1);
         }
     }
 
