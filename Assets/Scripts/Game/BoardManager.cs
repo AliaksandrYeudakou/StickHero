@@ -23,11 +23,15 @@ public class BoardManager : MonoBehaviour
     public static event Action<bool> BridgeFall;
     public static event Action<bool, float> DisplacementStick;
     public static event Action<bool> HeroFell;
+    public static event Action<int> PlayerScore;
 
     [SerializeField] GameObject startBlock; 
     [SerializeField] GameObject[] blocks;
     [SerializeField] GameObject hero;
     [SerializeField] int speed;
+    [SerializeField] AudioClip soundScore;
+    [SerializeField] AudioClip soundVictory;
+    [SerializeField] AudioClip soundDeath;
 
     GameObject instanceStartBlock;
     GameObject instanceBlock;
@@ -63,6 +67,8 @@ public class BoardManager : MonoBehaviour
     float displacementDistance;
     float displacementBlockPosX;
     float displacementAddBlockPosX;
+    float additionalScoreLeft;
+    float additionalScoreRight;
 
     float currentTime;
     float moovingTime;
@@ -88,6 +94,7 @@ public class BoardManager : MonoBehaviour
     bool needAdditionalPush;
 
     int offsetsCount;
+    int score;
 
     #endregion
 
@@ -121,6 +128,8 @@ public class BoardManager : MonoBehaviour
         endY_fallingHero = -1 * (Screen.height / 2 + heroHeight);
 
         startX_MovingHero = startGameHeroPosX;
+
+        additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
     }
 
 
@@ -209,7 +218,6 @@ public class BoardManager : MonoBehaviour
 
     #region Private methods
 
-    // test below
     void MyReset()
     {
         isBridgeBuilt = false;
@@ -229,8 +237,8 @@ public class BoardManager : MonoBehaviour
         fallingTime = 0;
         displacementTime = 0;
         testTime = 0;
+        score = 0;
     }
-    // end test
 
 
     void SetupUIScene()
@@ -280,62 +288,41 @@ public class BoardManager : MonoBehaviour
 
     void CreateBlockAndPostions()
     {
-        ///
-        /// rewrite this method after..
-        ///
-
         if (offsetsCount == 2)
         {
             offsetsCount = 0;
             DestroyObject(instanceBlock);
         }
 
+        GameObject block = blocks[Random.Range(0, blocks.Length)];
+
+        float blockWidth = GetIconSize(block).x;
+
+        float x = Screen.width / 2 + blockWidth / 2;
+        float pickPosition = startCornerX + blockWidth;
+
+        end = Random.Range(x - blockWidth, pickPosition);
+        additionalBlock_leftCorner = end - GetIconSize(block).x / 2;
+        additionalBlock_rightCorner = end + GetIconSize(block).x / 2;
+        endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
+
+        additionalScoreLeft = end - 4;
+        additionalScoreRight = end + 4;
+
         if (offsetsCount == 0)
         {
-            GameObject block = blocks[Random.Range(0, blocks.Length)];
-
-            float blockWidth = GetIconSize(block).x;
-
-            additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
-            float x = Screen.width / 2 + blockWidth / 2;
-
             instanceBlock = Instantiate(block, new Vector3(x, additionalBlockPosY, 1), Quaternion.identity);
             instanceBlock.transform.SetParent(boardHolder);
 
             instanceBlock.transform.localScale = SetBlockScale(block);
-
-            float start = instanceBlock.transform.position.x;
-            float pickPosition = startCornerX + blockWidth;
-            end = Random.Range(start - blockWidth, pickPosition);
-
-            additionalBlock_leftCorner = end - GetIconSize(instanceBlock).x / 2;
-            additionalBlock_rightCorner = end + GetIconSize(instanceBlock).x / 2;
-
-            endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
         }
 
         if (offsetsCount == 1)
         {
-            GameObject block = blocks[Random.Range(0, blocks.Length)];
-
-            float blockWidth = GetIconSize(block).x;
-
-            additionalBlockPosY = -1 * (Screen.height / 2 - blockHeight / 2);
-            float x = Screen.width / 2 + blockWidth / 2;
-
             additionalBlock = Instantiate(block, new Vector3(x, additionalBlockPosY, 1), Quaternion.identity);
             additionalBlock.transform.SetParent(boardHolder);
 
             additionalBlock.transform.localScale = SetBlockScale(block);
-
-            float start = additionalBlock.transform.position.x;
-            float pickPosition = startCornerX + blockWidth;
-            end = Random.Range(start - blockWidth, pickPosition);
-
-            additionalBlock_leftCorner = end - GetIconSize(additionalBlock).x / 2;
-            additionalBlock_rightCorner = end + GetIconSize(additionalBlock).x / 2;
-
-            endX_movingHeroSuccess = additionalBlock_rightCorner - heroWidth / 1.5f;
         }
 
         offsetsCount++;
@@ -381,6 +368,19 @@ public class BoardManager : MonoBehaviour
 
                 if (instanceHero.transform.position.x == endX_movingHeroSuccess)
                 {
+                    if (stickEndX >= additionalScoreLeft && stickEndX <= additionalScoreRight)
+                    {
+                        score++;
+                        SoundManager.instance.PlaySingle(soundVictory);
+                    }
+
+                    else
+                    {
+                        SoundManager.instance.PlaySingle(soundScore);
+                    }
+
+                    score++;
+                    PlayerScore(score);
                     needDisplacement = true;
                 }
             }
@@ -424,7 +424,6 @@ public class BoardManager : MonoBehaviour
                         FallHero(endXBefor_movingHero);
                     }
                 }
-
                 
                 else if (stickEndX > additionalBlock_rightCorner)
                 {
@@ -477,6 +476,7 @@ public class BoardManager : MonoBehaviour
 
         if (Mathf.Approximately(instanceHero.transform.position.y, endY_fallingHero))
         {
+            SoundManager.instance.PlaySingle(soundDeath);
             mooving = true;
             instanceHero.transform.position = new Vector3(endX, (-1 * (Screen.height)), 1);
             HeroFell(true);

@@ -13,6 +13,7 @@ public class GameManager : MonoBehaviour
     public static GameManager instance = null;
 
     [SerializeField] GameObject stickController;
+    [SerializeField] AudioClip soundButton;
 
     BoardManager boardScript;
     StickController stickScript;
@@ -51,6 +52,8 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
+        SoundManager.instance.PlaySingle(soundButton);
+
         UIManager.instance.GameScreenState();
 
         boardScript.ISGameStarted();
@@ -62,6 +65,8 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
+        SoundManager.instance.PlaySingle(soundButton);
+
         UIManager.instance.GameScreenRestartState();
 
         boardScript.SetupGameScene();

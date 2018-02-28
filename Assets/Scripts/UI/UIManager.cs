@@ -82,6 +82,7 @@ public class UIManager : MonoBehaviour
     private void InitialUIState()
     {
         mainScreen.gameObject.SetActive(true);
+        gameOverScreen.gameObject.SetActive(true);
         HideScreens();
     }
 

@@ -16,6 +16,8 @@ public class StickController : MonoBehaviour
     public static event Action<Vector3> StickScale;
 
     [SerializeField] GameObject stick;
+    [SerializeField] AudioClip soundKick;
+    [SerializeField] AudioClip soundKickStick;
 
     GameObject instanceStick;
 
@@ -34,6 +36,9 @@ public class StickController : MonoBehaviour
     bool needFallBridge;
     bool isChangePosition;
     bool isGameOver;
+
+
+    int stickCount;
 
     #endregion
 
@@ -98,6 +103,12 @@ public class StickController : MonoBehaviour
 
     public void SetGameObjectPosition()
     {
+        if (stickCount == 1)
+        {
+            Destroy(rotateBoard.transform.gameObject, 3.5f);
+            stickCount = 0;
+        }
+
         float widthRatio = 0.25f;
 
         boardPositionX = -1 * (Screen.width * (0.5f - widthRatio));
@@ -109,6 +120,8 @@ public class StickController : MonoBehaviour
         instanceStick.transform.SetParent(rotateBoard);
 
         rotateBoard.transform.position = new Vector3(boardPositionX, boardPositionY, 1);
+
+        stickCount++;
     }
 
     void GrawthStick()
@@ -124,6 +137,8 @@ public class StickController : MonoBehaviour
 
     IEnumerator PutBridge(float euelerAngelZ)
     {
+        SoundManager.instance.PlaySingle(soundKickStick);
+
         float time = 0;
         float step = 0;
 
@@ -141,10 +156,11 @@ public class StickController : MonoBehaviour
             yield return new WaitForSeconds(0.016f);
         }
 
-        BridgeBuilt(true);
-
-        canPutBridge = false;
-        needFallBridge = false;
+        if (to == Quaternion.Euler(0, 0, -90f))
+        {
+            BridgeBuilt(true);
+            SoundManager.instance.PlaySingle(soundKick);
+        }
     }
 
 
@@ -179,7 +195,7 @@ public class StickController : MonoBehaviour
     {
         isClicked = isTouch;
 
-        if (!isTouch)
+        if (!isClicked)
         {
             canGrown = false;
 
@@ -201,13 +217,10 @@ public class StickController : MonoBehaviour
     {
         needFallBridge = isNeedFallBridge;
 
-        if (!isClicked)
+        if (needFallBridge)
         {
-            if (needFallBridge)
-            {
-                StartCoroutine(PutBridge(-180f));
-            }
-        }   
+            StartCoroutine(PutBridge(-180f));
+        }
     }
 
 
@@ -230,7 +243,8 @@ public class StickController : MonoBehaviour
 
         if (isGameOver)
         {
-            Destroy(rotateBoard.transform.gameObject);
+            Destroy(rotateBoard.transform.gameObject, 1f);
+            stickCount = 0;
         }
     }
 
@@ -239,7 +253,7 @@ public class StickController : MonoBehaviour
     {
         if (needrestart)
         {
-            SetGameObjectPosition();
+            SetGameObjectPosition();   
         }
     }
 

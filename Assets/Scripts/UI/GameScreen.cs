@@ -14,16 +14,32 @@ public class GameScreen : MonoBehaviour
     [SerializeField] int scoreTextSize = 30;
 
     Text scoreText;
-    int playerScore = 0;
+
+    int playerScore;
+
+    bool isGameOver;
 
     #endregion
 
 
     #region Unity lifecycle
 
+    void OnEnable()
+    {
+        BoardManager.PlayerScore += OnPlayerScore;
+        BoardManager.HeroFell += GameOver;
+    }
+
+
     void Start()
     {
         ScoreTextSettings();
+    }
+
+
+    void Update()
+    {
+        SetScore();
     }
 
 
@@ -38,6 +54,13 @@ public class GameScreen : MonoBehaviour
         OnScreenTouch(false);
     }
 
+
+    void OnDisable()
+    {
+        BoardManager.PlayerScore -= OnPlayerScore;
+        BoardManager.HeroFell -= GameOver;
+    }
+
     #endregion
 
 
@@ -50,7 +73,33 @@ public class GameScreen : MonoBehaviour
         scoreText.fontSize = scoreTextSize;
         scoreText.color = Color.white;
 
+        scoreText.text = "0";
+    }
+
+    void SetScore()
+    {
         scoreText.text = " " + playerScore;
+    }
+
+    #endregion
+
+
+    #region Event handlers
+
+    void OnPlayerScore(int getPlayerScore)
+    {
+        playerScore = getPlayerScore;
+    }
+
+
+    void GameOver(bool gameOver)
+    {
+        isGameOver = gameOver;
+
+        if (isGameOver)
+        {
+            playerScore = 0;
+        }
     }
 
     #endregion
